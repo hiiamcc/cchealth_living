@@ -10,6 +10,7 @@ permissions:
 jobs:
   test-notion:
     runs-on: ubuntu-latest
+
     steps:
       - name: 讀取完整 Notion 文章
         env:
@@ -21,6 +22,7 @@ jobs:
           import json
           import urllib.request
           import urllib.error
+          from urllib.parse import urlencode
 
           token = os.environ["NOTION_TOKEN"]
           database_id = os.environ["NOTION_DATABASE_ID"]
@@ -35,70 +37,126 @@ jobs:
               data = None
               if payload is not None:
                   data = json.dumps(payload).encode("utf-8")
+
               req = urllib.request.Request(
-                  url, data=data, headers=headers
+                  url,
+                  data=data,
+                  headers=headers
               )
+
               with urllib.request.urlopen(req) as response:
                   return json.load(response)
 
-          def get_all_blocks(page_id):
-              blocks = []
+          def get_all_children(block_id):
+              all_blocks = []
               cursor = None
 
               while True:
-                  url = (
-                      "https://api.notion.com/v1/blocks/"
-                      + page_id + "/children?page_size=100"
-                  )
+                  params = {"page_size": 100}
 
                   if cursor:
-                      url += "&start_cursor=" + cursor
+                      params["start_cursor"] = cursor
+
+                  url = (
+                      "https://api.notion.com/v1/blocks/"
+                      + block_id
+                      + "/children?"
+                      + urlencode(params)
+                  )
 
                   result = request_notion(url)
-                  blocks.extend(result.get("results", []))
+                  all_blocks.extend(result.get("results", []))
 
                   if not result.get("has_more"):
                       break
 
                   cursor = result.get("next_cursor")
+
                   if not cursor:
                       raise RuntimeError(
-                          "Notion 回傳 has_more，但沒有 next_cursor"
+                          "Notion 分頁缺少 next_cursor"
                       )
 
-              return blocks
+              return all_blocks
+
+          def count_blocks(parent_id, depth=0):
+              children = get_all_children(parent_id)
+
+              total = len(children)
+              nested_parents = 0
+              max_depth = depth
+
+              for block in children:
+                  if block.get("has_children"):
+                      nested_parents += 1
+
+                      child_total, child_nested, child_depth = (
+                          count_blocks(
+                              block["id"],
+                              depth + 1
+                          )
+                      )
+
+                      total += child_total
+                      nested_parents += child_nested
+                      max_depth = max(
+                          max_depth,
+                          child_depth
+                      )
+
+              return total, nested_parents, max_depth
 
           try:
               url = (
                   "https://api.notion.com/v1/databases/"
-                  + database_id + "/query"
+                  + database_id
+                  + "/query"
               )
-              result = request_notion(
-                  url, {"page_size": 100}
-              )
-              pages = result.get("results", [])
+
+              pages = []
+              cursor = None
+
+              while True:
+                  payload = {"page_size": 100}
+
+                  if cursor:
+                      payload["start_cursor"] = cursor
+
+                  result = request_notion(url, payload)
+                  pages.extend(result.get("results", []))
+
+                  if not result.get("has_more"):
+                      break
+
+                  cursor = result.get("next_cursor")
+
+                  if not cursor:
+                      raise RuntimeError(
+                          "資料庫分頁缺少 next_cursor"
+                      )
 
               print("成功讀取 Notion 資料庫")
-              print("本次取得文章數：", len(pages))
+              print("資料庫文章總數：", len(pages))
 
-              for page in pages:
-                  blocks = get_all_blocks(page["id"])
+              for index, page in enumerate(pages, 1):
+                  first_level = get_all_children(page["id"])
 
-                  print("--------------------")
-                  print("文章 ID：", page["id"])
-                  print("第一層內文區塊總數：", len(blocks))
-                  print(
-                      "包含子區塊的數量：",
-                      sum(
-                          1 for block in blocks
-                          if block.get("has_children")
-                      )
+                  total, nested, depth = count_blocks(
+                      page["id"]
                   )
 
+                  print("--------------------")
+                  print("第", index, "篇文章")
+                  print("第一層區塊：", len(first_level))
+                  print("所有層級區塊總數：", total)
+                  print("含有子區塊的區塊總數：", nested)
+                  print("最深子區塊層級：", depth)
+
               print("--------------------")
-              print("完整文章分頁讀取測試成功！")
+              print("Notion 所有層級讀取測試成功！")
 
           except urllib.error.HTTPError as error:
               print("Notion API 錯誤：", error.code)
               raise SystemExit(1)
+
           PY
