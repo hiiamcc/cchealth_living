@@ -1,5 +1,5 @@
 
-name: Notion 文章讀取測試
+name: Notion 完整文章讀取測試
 
 on:
   workflow_dispatch:
@@ -11,7 +11,7 @@ jobs:
   test-notion:
     runs-on: ubuntu-latest
     steps:
-      - name: 讀取 Notion 文章
+      - name: 讀取完整 Notion 文章
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
@@ -31,47 +31,74 @@ jobs:
               "Content-Type": "application/json"
           }
 
-          def notion_request(url, payload=None):
+          def request_notion(url, payload=None):
               data = None
               if payload is not None:
                   data = json.dumps(payload).encode("utf-8")
-              request = urllib.request.Request(
+              req = urllib.request.Request(
                   url, data=data, headers=headers
               )
-              with urllib.request.urlopen(request) as response:
+              with urllib.request.urlopen(req) as response:
                   return json.load(response)
+
+          def get_all_blocks(page_id):
+              blocks = []
+              cursor = None
+
+              while True:
+                  url = (
+                      "https://api.notion.com/v1/blocks/"
+                      + page_id + "/children?page_size=100"
+                  )
+
+                  if cursor:
+                      url += "&start_cursor=" + cursor
+
+                  result = request_notion(url)
+                  blocks.extend(result.get("results", []))
+
+                  if not result.get("has_more"):
+                      break
+
+                  cursor = result.get("next_cursor")
+                  if not cursor:
+                      raise RuntimeError(
+                          "Notion 回傳 has_more，但沒有 next_cursor"
+                      )
+
+              return blocks
 
           try:
               url = (
                   "https://api.notion.com/v1/databases/"
                   + database_id + "/query"
               )
-              result = notion_request(
-                  url, {"page_size": 10}
+              result = request_notion(
+                  url, {"page_size": 100}
               )
               pages = result.get("results", [])
 
-              print("成功讀取文章資料庫")
+              print("成功讀取 Notion 資料庫")
               print("本次取得文章數：", len(pages))
 
               for page in pages:
-                  properties = page.get("properties", {})
-                  print("文章欄位：", ", ".join(properties.keys()))
+                  blocks = get_all_blocks(page["id"])
 
-                  page_id = page["id"]
-                  blocks = notion_request(
-                      "https://api.notion.com/v1/blocks/"
-                      + page_id + "/children?page_size=100"
-                  )
-
+                  print("--------------------")
+                  print("文章 ID：", page["id"])
+                  print("第一層內文區塊總數：", len(blocks))
                   print(
-                      "成功讀取文章內文區塊，數量：",
-                      len(blocks.get("results", []))
+                      "包含子區塊的數量：",
+                      sum(
+                          1 for block in blocks
+                          if block.get("has_children")
+                      )
                   )
 
-              print("Notion 文章讀取測試完成！")
+              print("--------------------")
+              print("完整文章分頁讀取測試成功！")
 
           except urllib.error.HTTPError as error:
-              print("讀取失敗，HTTP 狀態碼：", error.code)
+              print("Notion API 錯誤：", error.code)
               raise SystemExit(1)
           PY
