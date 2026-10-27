@@ -1,5 +1,4 @@
-
-name: Notion 完整文章讀取測試
+name: Notion 文章預覽產生器
 
 on:
   workflow_dispatch:
@@ -8,155 +7,22 @@ permissions:
   contents: read
 
 jobs:
-  test-notion:
+  preview:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 讀取完整 Notion 文章
+      - name: 下載網站檔案
+        uses: actions/checkout@v4
+      - name: 安裝 HTML 解析套件
+        run: python3 -m pip install beautifulsoup4
+      - name: 產生待審核文章預覽
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-        run: |
-          python3 - <<'PY'
-          import os
-          import json
-          import urllib.request
-          import urllib.error
-          from urllib.parse import urlencode
-
-          token = os.environ["NOTION_TOKEN"]
-          database_id = os.environ["NOTION_DATABASE_ID"]
-
-          headers = {
-              "Authorization": "Bearer " + token,
-              "Notion-Version": "2022-06-28",
-              "Content-Type": "application/json"
-          }
-
-          def request_notion(url, payload=None):
-              data = None
-              if payload is not None:
-                  data = json.dumps(payload).encode("utf-8")
-
-              req = urllib.request.Request(
-                  url,
-                  data=data,
-                  headers=headers
-              )
-
-              with urllib.request.urlopen(req) as response:
-                  return json.load(response)
-
-          def get_all_children(block_id):
-              all_blocks = []
-              cursor = None
-
-              while True:
-                  params = {"page_size": 100}
-
-                  if cursor:
-                      params["start_cursor"] = cursor
-
-                  url = (
-                      "https://api.notion.com/v1/blocks/"
-                      + block_id
-                      + "/children?"
-                      + urlencode(params)
-                  )
-
-                  result = request_notion(url)
-                  all_blocks.extend(result.get("results", []))
-
-                  if not result.get("has_more"):
-                      break
-
-                  cursor = result.get("next_cursor")
-
-                  if not cursor:
-                      raise RuntimeError(
-                          "Notion 分頁缺少 next_cursor"
-                      )
-
-              return all_blocks
-
-          def count_blocks(parent_id, depth=0):
-              children = get_all_children(parent_id)
-
-              total = len(children)
-              nested_parents = 0
-              max_depth = depth
-
-              for block in children:
-                  if block.get("has_children"):
-                      nested_parents += 1
-
-                      child_total, child_nested, child_depth = (
-                          count_blocks(
-                              block["id"],
-                              depth + 1
-                          )
-                      )
-
-                      total += child_total
-                      nested_parents += child_nested
-                      max_depth = max(
-                          max_depth,
-                          child_depth
-                      )
-
-              return total, nested_parents, max_depth
-
-          try:
-              url = (
-                  "https://api.notion.com/v1/databases/"
-                  + database_id
-                  + "/query"
-              )
-
-              pages = []
-              cursor = None
-
-              while True:
-                  payload = {"page_size": 100}
-
-                  if cursor:
-                      payload["start_cursor"] = cursor
-
-                  result = request_notion(url, payload)
-                  pages.extend(result.get("results", []))
-
-                  if not result.get("has_more"):
-                      break
-
-                  cursor = result.get("next_cursor")
-
-                  if not cursor:
-                      raise RuntimeError(
-                          "資料庫分頁缺少 next_cursor"
-                      )
-
-              print("成功讀取 Notion 資料庫")
-              print("資料庫文章總數：", len(pages))
-
-              for index, page in enumerate(pages, 1):
-                  first_level = get_all_children(page["id"])
-
-                  total, nested, depth = count_blocks(
-                      page["id"]
-                  )
-
-                  print("--------------------")
-                  print("第", index, "篇文章")
-                  print("第一層區塊：", len(first_level))
-                  print("所有層級區塊總數：", total)
-                  print("含有子區塊的區塊總數：", nested)
-                  print("最深子區塊層級：", depth)
-
-              print("--------------------")
-              print("Notion 所有層級讀取測試成功！")
-
-          except urllib.error.HTTPError as error:
-              print("Notion API 錯誤：", error.code)
-              raise SystemExit(1)
-
-          PY
+        run: python3 scripts/build_notion_preview.py
+      - name: 上傳預覽檔案供人工檢查
+        uses: actions/upload-artifact@v4
+        with:
+          name: notion-article-preview
+          path: scripts/preview-output/*.html
+          if-no-files-found: error
+          retention-days: 1
