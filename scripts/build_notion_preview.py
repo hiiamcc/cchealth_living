@@ -8,7 +8,7 @@ import urllib.request
 from pathlib import Path
 from bs4 import BeautifulSoup
 
-ROOT = Path(__file__).resolve().parents[0]
+ROOT = Path(__file__).resolve().parents[1]
 SITE = 'https://hiiamcc.github.io/cchealth_living/'
 API = 'https://api.notion.com/v1/'
 TOKEN = os.environ['NOTION_TOKEN']
