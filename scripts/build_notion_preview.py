@@ -137,7 +137,7 @@ def youtube_embed(url):
 
 
 def main():
-    template_path=ROOT/'article-template.html'
+    template_path=ROOT/'templates'/'article-template.html'
     if not template_path.exists(): raise RuntimeError('找不到 article-template.html')
     template=template_path.read_text(encoding='utf-8')
     outdir=ROOT/'preview-output'
