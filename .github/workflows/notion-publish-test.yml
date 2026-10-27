@@ -1,0 +1,30 @@
+name: Notion 文章發布安全測試
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下載開發分支程式
+        uses: actions/checkout@v4
+
+      - name: 測試已發布文章不可覆蓋
+        shell: bash
+        run: |
+          if python3 scripts/build_notion_publish.py --slug stroke-brain-recovery; then
+            echo "測試失敗：已存在的文章沒有被阻擋"
+            exit 1
+          else
+            echo "測試通過：已存在的文章被阻擋"
+          fi
+
+      - name: 測試新文章代稱
+        run: python3 scripts/build_notion_publish.py --slug test-new-article
+
+      - name: 確認沒有修改網站檔案
+        run: git diff --exit-code
