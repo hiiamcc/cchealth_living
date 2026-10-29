@@ -3,9 +3,28 @@
 import argparse
 import re
 from pathlib import Path
+from build_notion_preview import pages, plain
 
 ROOT = Path(__file__).resolve().parent.parent
 
+def find_notion_article(slug):
+    matches = []
+
+    for page in pages():
+        properties = page.get("properties", {})
+        page_slug = plain(properties.get("文章網址代稱", {})).strip()
+
+        if page_slug == slug:
+            matches.append(page)
+
+    if len(matches) != 1:
+        raise ValueError(f"找到 {len(matches)} 篇符合網址代稱的文章，必須剛好一篇")
+
+    status = plain(matches[0].get("properties", {}).get("發布狀態", {}))
+    if status != "待審核":
+        raise ValueError(f"文章狀態為「{status}」，不是「待審核」")
+
+    return matches[0]
 
 def main():
     parser = argparse.ArgumentParser()
