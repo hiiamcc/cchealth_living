@@ -20,7 +20,7 @@ def find_notion_article(slug):
     if len(matches) != 1:
         raise ValueError(f"找到 {len(matches)} 篇符合網址代稱的文章，必須剛好一篇")
 
-    status = plain(matches[0].get("properties", {}).get("發布狀態", {}))
+        status = (matches[0].get("properties", {}).get("發布狀態", {}).get("select") or {}).get("name", "")
     if status != "待審核":
         raise ValueError(f"文章狀態為「{status}」，不是「待審核」")
 
