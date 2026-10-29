@@ -39,8 +39,9 @@ def main():
     if article_file.exists():
         parser.error(f"停止執行：文章已存在，不允許覆蓋：{article_file}")
 
-    print(f"已指定新文章：{args.slug}")
-    print("檢查通過。目前不會讀取 Notion，也不會修改網站檔案。")
+    article = find_notion_article(args.slug)
+    print(f"已找到符合條件的 Notion 文章：{article['id']}")
+    print("查找完成，不會產生網頁或修改網站檔案。")
 
 
 if __name__ == "__main__":
