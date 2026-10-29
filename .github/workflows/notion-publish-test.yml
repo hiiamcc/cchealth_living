@@ -23,8 +23,18 @@ jobs:
             echo "測試通過：已存在的文章被阻擋"
           fi
 
-      - name: 測試新文章代稱
-        run: python3 scripts/build_notion_publish.py --slug test-new-article
+      - name: 測試不存在的文章不可發布
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        shell: bash
+        run: |
+          if python3 scripts/build_notion_publish.py --slug test-new-article; then
+            echo "測試失敗：不存在的 Notion 文章被允許通過"
+            exit 1
+          else
+            echo "程式已拒絕請求；仍需檢查失敗原因是否正確"
+          fi
 
       - name: 確認沒有修改網站檔案
         run: git diff --exit-code
