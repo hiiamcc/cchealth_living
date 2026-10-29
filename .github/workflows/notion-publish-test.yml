@@ -10,8 +10,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: 下載開發分支程式
-        uses: actions/checkout@v4
+      - name: 安裝 Python 套件
+        run: python3 -m pip install beautifulsoup4
 
       - name: 測試已發布文章不可覆蓋
         shell: bash
