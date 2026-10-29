@@ -28,8 +28,27 @@ jobs:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
         shell: bash
+      - name: 測試不存在的文章不可發布
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        shell: bash
         run: |
-          if python3 scripts/build_notion_publish.py --slug test-new-article; then
+          set +e
+          python3 scripts/build_notion_publish.py --slug test-new-article > result.log 2>&1
+          result=$?
+          set -e
+          if [ "$result" -eq 0 ]; then
+            echo "測試失敗：不存在的文章被允許通過"
+            exit 1
+          fi
+          if grep -q "找到 0 篇符合網址代稱的文章" result.log; then
+            echo "測試通過：不存在的文章被正確阻擋"
+          else
+            echo "測試失敗：程式不是因為找不到文章而停止"
+            sed -E 's/(secret|token|password)[^ ]*/[REDACTED]/Ig' result.log
+            exit 1
+          fi
             echo "測試失敗：不存在的 Notion 文章被允許通過"
             exit 1
           else
