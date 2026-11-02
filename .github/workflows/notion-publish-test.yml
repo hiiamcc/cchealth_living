@@ -51,11 +51,7 @@ jobs:
             sed -E 's/(secret|token|password)[^ ]*/[REDACTED]/Ig' result.log
             exit 1
           fi
-            echo "測試失敗：不存在的 Notion 文章被允許通過"
-            exit 1
-          else
-            echo "程式已拒絕請求；仍需檢查失敗原因是否正確"
-          fi
+
 
       - name: 確認沒有修改網站檔案
         run: git diff --exit-code
