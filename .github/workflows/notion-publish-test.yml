@@ -26,11 +26,7 @@ jobs:
             echo "測試通過：已存在的文章被阻擋"
           fi
 
-      - name: 測試不存在的文章不可發布
-        env:
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-        shell: bash
+    
       - name: 測試不存在的文章不可發布
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
