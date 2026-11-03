@@ -29,6 +29,14 @@ def find_notion_article(slug):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--slug", required=True, help="指定單篇文章的網址代稱")
+    
+    parser.add_argument(
+        "--mode",
+        choices=["create", "update"],
+        default="create",
+        help="create 為新增文章；update 為更新既有文章",
+    )
+
     args = parser.parse_args()
 
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", args.slug):
@@ -36,8 +44,11 @@ def main():
 
     article_file = ROOT / "articles" / args.slug / "index.html"
 
-    if article_file.exists():
-        parser.error(f"停止執行：文章已存在，不允許覆蓋：{article_file}")
+    if args.mode == "create" and article_file.exists():
+        parser.error(f"停止執行：文章已存在，不能重複新增：{article_file}")
+
+    if args.mode == "update" and not article_file.exists():
+        parser.error(f"停止執行：文章不存在，無法更新：{article_file}")
 
     article = find_notion_article(args.slug)
     print(f"已找到符合條件的 Notion 文章：{article['id']}")
