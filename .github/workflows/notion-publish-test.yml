@@ -64,5 +64,24 @@ jobs:
           grep -q "不會產生網頁或修改網站檔案" result.log
 
 
+      - name: 測試更新模式的安全限制
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        shell: bash
+        run: |
+          set -e
+
+          echo "測試：不存在的文章不能更新"
+          if python3 scripts/build_notion_publish.py --slug article-that-does-not-exist --mode update; then
+            echo "測試失敗：允許更新不存在的文章"
+            exit 1
+          fi
+
+          echo "測試：已存在的文章可以進入更新檢查"
+          python3 scripts/build_notion_publish.py --slug stroke-brain-recovery --mode update
+
+          echo "更新模式安全測試通過"
+
       - name: 確認沒有修改網站檔案
         run: git diff --exit-code
