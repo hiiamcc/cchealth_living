@@ -53,5 +53,16 @@ jobs:
           fi
 
 
+      - name: 測試可找到待審核的 Notion 文章
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        run: |
+          python3 scripts/build_notion_publish.py --slug notion-publish-test > result.log 2>&1
+          cat result.log
+          grep -q "已找到符合條件的 Notion 文章" result.log
+          grep -q "不會產生網頁或修改網站檔案" result.log
+
+
       - name: 確認沒有修改網站檔案
         run: git diff --exit-code
