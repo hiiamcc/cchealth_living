@@ -61,7 +61,8 @@ jobs:
           python3 scripts/build_notion_publish.py --slug notion-publish-test > result.log 2>&1
           cat result.log
           grep -q "已找到符合條件的 Notion 文章" result.log
-          grep -q "不會產生網頁或修改網站檔案" result.log
+          test -s publish-test-output/notion-publish-test.html
+
 
 
       - name: 測試更新模式的安全限制
