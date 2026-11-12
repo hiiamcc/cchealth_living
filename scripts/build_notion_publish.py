@@ -71,8 +71,54 @@ def build_article_html(article):
     for child in BeautifulSoup(body, "html.parser").contents[:]:
         prose.append(child)
 
+    video = plain(props.get("YouTube 網址"))
+    wrap = soup.select_one(".video-wrap")
+
+    if wrap:
+        embed = youtube_embed(video)
+        if embed:
+            frame = wrap.find("iframe")
+            if not frame:
+                raise RuntimeError("文章模板缺少 YouTube iframe")
+            frame["src"] = embed
+            frame["title"] = title
+
+            anchor = wrap.find("a", href=True)
+            if anchor:
+                anchor["href"] = video
+        else:
+            wrap.decompose()
+
     soup.title.string = title + "｜多C多健康"
 
+    description = soup.find("meta", attrs={"name": "description"})
+    if description:
+        description["content"] = summary
+
+    article_url = (
+        "https://hiiamcc.github.io/cchealth_living/"
+        f"articles/{slug}/"
+    )
+
+    for meta in soup.find_all("meta", attrs={"property": True}):
+        if meta["property"] == "og:title":
+            meta["content"] = title
+        elif meta["property"] == "og:description":
+            meta["content"] = summary
+        elif meta["property"] == "og:url":
+            meta["content"] = article_url
+
+    canonical = soup.find("link", rel="canonical")
+    if canonical:
+        canonical["href"] = article_url
+
+    for link in soup.find_all("a", href=True):
+        href = link["href"]
+        if "articles/stroke-brain-recovery" in href:
+            raise RuntimeError(
+                "文章模板含有固定的舊文章連結，請先檢查"
+            )
+        
     return str(soup)
 
 def main():
