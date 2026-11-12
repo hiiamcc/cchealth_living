@@ -84,5 +84,14 @@ jobs:
 
           echo "更新模式安全測試通過"
 
+      - name: 保存 HTML 測試檔案
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: notion-publish-html-test
+          path: publish-test-output/*.html
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: 確認沒有修改網站檔案
         run: git diff --exit-code
