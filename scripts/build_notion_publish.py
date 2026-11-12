@@ -3,7 +3,10 @@
 import argparse
 import re
 from pathlib import Path
-from build_notion_preview import pages, plain
+
+from build_notion_preview import pages, plain, blocks, render_children, youtube_embed
+from bs4 import BeautifulSoup
+
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -25,6 +28,52 @@ def find_notion_article(slug):
         raise ValueError(f"文章狀態為「{status}」，不是「待審核」")
 
     return matches[0]
+
+def build_article_html(article):
+    """使用現有模板產生文章 HTML，不修改網站檔案。"""
+    props = article["properties"]
+
+    title = plain(props.get("文章標題"))
+    summary = plain(props.get("文章摘要"))
+    category = plain(props.get("文章分類"))
+    slug = plain(props.get("文章網址代稱"))
+
+    template_path = ROOT / "templates" / "article-template.html"
+    template = template_path.read_text(encoding="utf-8")
+    soup = BeautifulSoup(template, "html.parser")
+
+    article_element = soup.select_one("article.art-page")
+    head = soup.select_one("article .art-head")
+    prose = soup.select_one("article .prose")
+
+    if not article_element or not head or not prose:
+        raise RuntimeError("文章模板缺少必要元素")
+
+    article_element["id"] = slug
+
+    h1 = head.find("h1")
+    if h1:
+        h1.clear()
+        h1.append(title)
+
+    summary_element = head.find("p")
+    if summary_element:
+        summary_element.clear()
+        summary_element.append(summary)
+
+    badge = head.select_one(".badge")
+    if badge:
+        badge.string = category or "健康知識"
+
+    body = render_children(blocks(article["id"]))
+    prose.clear()
+
+    for child in BeautifulSoup(body, "html.parser").contents[:]:
+        prose.append(child)
+
+    soup.title.string = title + "｜多C多健康"
+
+    return str(soup)
 
 def main():
     parser = argparse.ArgumentParser()
