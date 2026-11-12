@@ -147,7 +147,18 @@ def main():
 
     article = find_notion_article(args.slug)
     print(f"已找到符合條件的 Notion 文章：{article['id']}")
-    print("查找完成，不會產生網頁或修改網站檔案。")
+
+    html = build_article_html(article)
+
+    test_dir = ROOT / "publish-test-output"
+    test_dir.mkdir(exist_ok=True)
+
+    test_file = test_dir / f"{args.slug}.html"
+    test_file.write_text(html, encoding="utf-8")
+
+    print(f"HTML 測試檔案已產生：{test_file}")
+    print("這只是測試檔案，尚未發布到正式網站。")
+
 
 
 if __name__ == "__main__":
