@@ -65,6 +65,13 @@ def build_article_html(article):
     if badge:
         badge.string = category or "健康知識"
 
+    # 更新文章上方的分類導覽文字
+    breadcrumb = soup.select_one("nav.crumb")
+    if breadcrumb:
+        links = breadcrumb.find_all("a")
+        if len(links) >= 2:
+            links[-1].string = category or "健康知識"
+
     body = render_children(blocks(article["id"]))
     prose.clear()
 
